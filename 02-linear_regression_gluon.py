@@ -67,7 +67,7 @@ def main():
     # 在使用 Gluon 训练模型时，我们通过调用Trainer实例的step函数来迭代模型参数。
     # 上一节中我们提到，由于变量l是长度为batch_size的一维 NDArray，执行l.backward()等价于执行l.sum().backward()。
     # 按照小批量随机梯度下降的定义，我们在step函数中指明批量大小，从而对批量中样本梯度求平均。
-    num_epochs = 3000
+    num_epochs = 30
     for epoch in range(1, num_epochs + 1):
         for X, y in data_iter:
             with autograd.record():
@@ -77,7 +77,7 @@ def main():
         l = loss(net(features), labels)
         print('epoch %d, loss: %f' % (epoch, l.mean().asnumpy()))
     #  下面我们分别比较学到的和真实的模型参数。我们从net获得需要的层，并访问其权重（weight）和偏差（bias）。学到的和真实的参数很接近。
-    # dense = net[0]
+    # dense = net2[0]
     # print(true_w, dense.weight.data())
     # print(true_b, dense.weight.data())
 if __name__ == '__main__':
