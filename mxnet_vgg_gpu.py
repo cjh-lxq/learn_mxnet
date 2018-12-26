@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# @Time    : 2018/12/24 20:37:15
+# @Time    : 2018/12/26 9:59:55
 # @Author  : 陈建宏
 # @Site    : BeiJing
-# @File    : mxnet_vgg.py
+# @File    : mxnet_vgg_gpu.py
 # @Software: PyCharm
 from __future__ import division
 from mxnet import nd, init, autograd
@@ -20,17 +20,17 @@ from multiprocessing.dummy import Pool as ThreadPool
 PIC_SIZE = 224
 BATCH_SIZE = 20
 # TRAIN_PATH='/home/xue/ChenJH2018/dog_cat/train'
-TRAIN_PATH = '/media/cjh/DATA/dxr/dog_and_cat/train'
-TEST_PATH = '/media/cjh/DATA/dxr/dog_and_cat/test2'
-TRAIN_DATA_SIZE = 500
+TRAIN_PATH = '/media/cjh/colorful/Data_set/dog_and_cat/train'
+TEST_PATH = '/media/cjh/colorful/Data_set/dog_and_cat/test2'
+TRAIN_REC_PATH = '/home/cjh/lab_pycharm/data/train.rec'
+TRAIN_DATA_SIZE = 300
 TEST_DATA_SIZE = 300
 DROPOUT_RATE = 0.5
 
 
 def get_pic(pic_name):
     path = TRAIN_PATH
-    pic = nd.array(cv2.resize(cv2.imread(os.path.join(path, pic_name)), (PIC_SIZE, PIC_SIZE)))
-    pic = pic.reshape((1, 3, PIC_SIZE, PIC_SIZE))
+    pic = cv2.resize(cv2.imread(os.path.join(path, pic_name)), (PIC_SIZE, PIC_SIZE))
     return pic
 
 
@@ -51,6 +51,7 @@ def get_pic_dogandcat(num_pic):
     pic_list = pool.map(get_pic, pic_name_list)
     pool.close()
     pool.join()
+    pic_list = np.transpose(pic_list, (0, 3, 1, 2))
     return nd.array(pic_list, dtype=np.float32), nd.array(label_list, dtype=np.float32)
 
 
@@ -67,12 +68,15 @@ def evaluate_accuracy(data_iter, net):
 
 def vgg():
     print 'programe begin'
-    train_pic_list, train_label_list = get_pic_dogandcat(TRAIN_DATA_SIZE)
-    test_pic_list, test_label_list = get_pic_dogandcat(TEST_DATA_SIZE)
-    train_dataset = gluon.data.ArrayDataset(train_pic_list, train_label_list)
-    train_data_iter = gluon.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    test_dataset = gluon.data.ArrayDataset(test_pic_list, test_label_list)
-    test_data_iter = gluon.data.DataLoader(test_dataset, batch_size=TEST_DATA_SIZE, shuffle=True)
+    # train_pic_list, train_label_list = get_pic_dogandcat(TRAIN_DATA_SIZE)
+    # test_pic_list, test_label_list = get_pic_dogandcat(TEST_DATA_SIZE)
+    # train_dataset = gluon.data.ArrayDataset(train_pic_list, train_label_list)
+    # train_data_iter = gluon.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    # test_dataset = gluon.data.ArrayDataset(test_pic_list, test_label_list)
+    # test_data_iter = gluon.data.DataLoader(test_dataset, batch_size=TEST_DATA_SIZE, shuffle=True)
+    train_data_iter = mx.image.ImageIter(batch_size=BATCH_SIZE, data_shape=(3, 224, 224),
+                                         path_imglist='train.lst')
+    train_data_iter.reset()
     print 'dataset created'
     net = nn.Sequential()
     net.add(
@@ -112,15 +116,15 @@ def vgg():
     net.add(nn.Dropout(DROPOUT_RATE))
     net.add(nn.Dense(2, in_units=4096))
     print 'net created'
-    net.initialize()
+    net.initialize(ctx=mx.gpu())
     ####################
     X = nd.random.uniform(shape=(BATCH_SIZE, 3, 224, 224))
-    print train_pic_list.shape
+    X=X.copyto(mx.gpu())
     for blk in net:
         X = blk(X)
         print(blk.name, 'output shape:\t', X.shape)
     # exit()
-    net(train_pic_list[0])
+    # net(train_pic_list[0])
     ####################
     loss = gluon.loss.SoftmaxCrossEntropyLoss()
     learning_rate = 0.01
@@ -131,8 +135,12 @@ def vgg():
         start_time = time.time()
         train_l_sum = 0
         train_acc_sum = 0
-        num_add = 0
-        for X, y in train_data_iter:
+        num_add = 1
+        for data in train_data_iter:
+            X=data.data[0]
+            y=data.label[0]
+            X=X.copyto(mx.gpu())
+            y=y.copyto(mx.gpu())
             with autograd.record():
                 y_predict = net(X)
                 l = loss(net(X), y)
@@ -144,13 +152,14 @@ def vgg():
         if (epoch != 0 and epoch % 3 == 0):
             learning_rate = learning_rate * 0.9
             trainer.set_learning_rate(learning_rate)
-        test_acc = evaluate_accuracy(test_data_iter, net)
+        # test_acc = evaluate_accuracy(test_data_iter, net)
+        test_acc = 0
         time1 = time.time() - start_time
         print(
-                    'epoch %3d, loss %.8f, train acc %.8f, test acc %.8f, learning_rate: %.8f, Time: %.3fs, predict_time: %dmin%ds'
-                    % (epoch + 1, train_l_sum / len(train_data_iter),
-                       train_acc_sum / len(train_data_iter), test_acc, trainer.learning_rate,
-                       time1, int(time1 * (num_epoch - epoch - 1) / 60), time1 * (num_epoch - epoch - 1) % 60))
+                'epoch %3d, loss %.8f, train acc %.8f, test acc %.8f, learning_rate: %.8f, Time: %.3fs, predict_time: %dmin%ds'
+                % (epoch + 1, train_l_sum / num_add,
+                   train_acc_sum / num_add, test_acc, trainer.learning_rate,
+                   time1, int(time1 * (num_epoch - epoch - 1) / 60), time1 * (num_epoch - epoch - 1) % 60))
 
 
 if __name__ == '__main__':
@@ -162,5 +171,4 @@ if __name__ == '__main__':
     #
     # img = img.reshape((1, 3, 224, 224))
     # print img.shape, img.dtype
-    with mx.Context(mx.gpu()):
-        vgg()
+    vgg()
