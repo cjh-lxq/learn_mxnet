@@ -154,8 +154,8 @@ def vgg():
         time1 = time.time() - start_time
         print(
                 'epoch %3d, loss %.8f, train acc %.8f, test acc %.8f, learning_rate: %.8f, Time: %.3fs, predict_time: %dmin%ds'
-                % (epoch + 1, train_l_sum / len(train_data_iter),
-                   train_acc_sum / len(train_data_iter), test_acc, trainer.learning_rate,
+                % (epoch + 1, train_l_sum / num_add,
+                   train_acc_sum / num_add, test_acc, trainer.learning_rate,
                    time1, int(time1 * (num_epoch - epoch - 1) / 60), time1 * (num_epoch - epoch - 1) % 60))
 
 

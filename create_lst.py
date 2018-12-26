@@ -9,8 +9,7 @@ import os,random
 def create_lst(path):
     pic_list=[x for x in os.listdir(path) if x.find('.jpg')!=-1]
     random.shuffle(pic_list)
-    print '123'
-    with open('train.lst','w+') as f:
+    with open('test.lst','w+') as f:
         num_pic=0
         for pic_name in pic_list:
             if pic_name.find('cat')!=-1:
@@ -21,4 +20,4 @@ def create_lst(path):
             f.write(need_write)
             num_pic+=1
 if __name__ == '__main__':
-    create_lst('/media/cjh/colorful/Data_set/dog_and_cat/train')
+    create_lst('/media/cjh/colorful/Data_set/dog_and_cat/test2')
