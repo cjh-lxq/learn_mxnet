@@ -15,7 +15,7 @@ import random as rd
 import gluonbook as gb
 import mxnet as mx
 from mxnet.gluon import loss as gloss
-from gluonbook import accuracy,evaluate_accuracy
+from gluonbook import accuracy, evaluate_accuracy
 from multiprocessing import Pool
 from multiprocessing.dummy import Pool as ThreadPool
 
@@ -35,7 +35,8 @@ def get_iter():
                                          path_imglist='train.lst')
     test_data_iter = mx.image.ImageIter(batch_size=BATCH_SIZE, data_shape=(3, PIC_SIZE, PIC_SIZE),
                                         path_imglist='test.lst')
-    return train_data_iter,test_data_iter
+    return train_data_iter, test_data_iter
+
 
 def vgg():
     net = nn.Sequential()
@@ -86,7 +87,7 @@ def train_ch5(net, train_iter, test_iter, batch_size, trainer, ctx,
     for epoch in range(1, num_epochs + 1):
         train_l_sum = 0
         train_acc_sum = 0
-        num_add=0
+        num_add = 0
         start = time.time()
         for X, y in train_iter:
             X, y = X.as_in_context(ctx), y.as_in_context(ctx)
@@ -97,8 +98,9 @@ def train_ch5(net, train_iter, test_iter, batch_size, trainer, ctx,
             trainer.step(batch_size)
             train_l_sum += l.mean().asscalar()
             train_acc_sum += accuracy(y_hat, y)
-        test_acc = evaluate_accuracy(test_iter, net, ctx)
-        num_add+=1
+            num_add += 1
+        # test_acc = evaluate_accuracy(test_iter, net, ctx)
+        test_acc = 0
         print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, '
               'time %.1f sec'
               % (epoch, train_l_sum / num_add,
@@ -110,9 +112,32 @@ if __name__ == '__main__':
     # ratio = 4
     # small_conv_arch = [(pair[0], pair[1] // ratio) for pair in conv_arch]
     # print small_conv_arch
+    ctx = mx.gpu()
     net = vgg()
-    net.initialize(init.Xavier())
-    X = nd.random.uniform(shape=(1, 3, 224, 224))
-    for blk in net:
-        X = blk(X)
-        print(blk.name, 'output shape:\t', X.shape)
+    net.initialize(init.Xavier(), ctx=ctx)
+    train_iter, test_iter = get_iter()
+    loss = gloss.SoftmaxCrossEntropyLoss()
+    num_epochs = 100
+    batch_size = BATCH_SIZE
+    trainer = gluon.Trainer(net.collect_params(), 'sgd', {'learning_rate': 0.001})
+    for epoch in range(1, num_epochs + 1):
+        train_l_sum = 0
+        train_acc_sum = 0
+        num_add = 0
+        start = time.time()
+        for X, y in train_iter:
+            X, y = X.as_in_context(ctx), y.as_in_context(ctx)
+            with autograd.record():
+                y_hat = net(X)
+                l = loss(y_hat, y)
+            l.backward()
+            trainer.step(batch_size)
+            train_l_sum += l.mean().asscalar()
+            train_acc_sum += accuracy(y_hat, y)
+            num_add += 1
+        # test_acc = evaluate_accuracy(test_iter, net, ctx)
+        test_acc = 0
+        print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, '
+              'time %.1f sec'
+              % (epoch, train_l_sum / num_add,
+                 train_acc_sum / num_add, test_acc, time.time() - start))

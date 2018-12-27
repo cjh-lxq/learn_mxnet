@@ -87,7 +87,7 @@ if __name__ == '__main__':
         # 通过lr_scheduler = SimpleLRScheduler(learning_rate=0.1)初始化学习率为0.1。
         # 再把lr_scheduler作为trainer的参数：
         # trainer = gluon.Trainer(net2.collect_params(), 'sgd', optimizer_params={'lr_scheduler': lr_scheduler})
-        # 然后通过lr_scheduler.learning_rate -= 0.01让学习率随着epoch线性递减。
+        # 然后通过lr_scheduler.learning_rate -= 0.01 让学习率随着epoch线性递减。
         learning_rate=0.001
         trainer=gluon.Trainer(net.collect_params(),'sgd',{'learning_rate':learning_rate})
         num_eproch=100

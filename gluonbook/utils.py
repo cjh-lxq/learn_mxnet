@@ -152,6 +152,21 @@ def download_voc_pascal(data_dir='../data'):
     return voc_dir
 
 
+def evaluate_accuracy_Imageiter(data_iter, net, ctx=[mx.cpu()]):
+    """Evaluate accuracy of a model on the given data set."""
+    if isinstance(ctx, mx.Context):
+        ctx = [ctx]
+    acc = nd.array([0])
+    n = 0
+    for batch in data_iter:
+        features, labels, _ = _get_batch(batch, ctx)
+        for X, y in zip(features, labels):
+            y = y.astype('float32')
+            acc += (net(X).argmax(axis=1) == y).sum().copyto(mx.cpu())
+            n += y.size
+        acc.wait_to_read()
+    return acc.asscalar() / n
+
 def evaluate_accuracy(data_iter, net, ctx=[mx.cpu()]):
     """Evaluate accuracy of a model on the given data set."""
     if isinstance(ctx, mx.Context):
